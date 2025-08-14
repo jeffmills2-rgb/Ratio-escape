@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Locked in the Ratio Room!</title>
+<style>
+  :root{
+    --bg:#f8fafc;         /* pastel background */
+    --card:#ffffff;       /* panels */
+    --ink:#0f172a;        /* dark slate */
+    --muted:#475569;      /* slate */
+    --accent:#a5b4fc;     /* soft indigo */
+    --accent-2:#fdba74;   /* soft orange */
+    --accent-3:#86efac;   /* soft green */
+    --danger:#fca5a5;     /* soft red */
+    --ok:#bef264;         /* lime */
+    --focus:#93c5fd;      /* blue ring */
+    --btn:#e9d5ff;        /* soft violet */
+    --btn-ink:#4c1d95;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; font-family: ui-rounded, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+    background:linear-gradient(180deg,var(--bg),#eef2ff 80%);
+    color:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .container{
+    width:min(720px,92vw);
+    background:var(--card);
+    border-radius:24px;
+    box-shadow:0 10px 30px rgba(15,23,42,.1);
+    padding:24px 20px 28px;
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;
+  }
+  .title{
+    font-size:clamp(20px,4vw,28px); font-weight:800; text-align:center; width:100%;
+  }
+  .level-tag{
+    display:inline-block; padding:6px 12px; border-radius:999px; background:var(--accent);
+    font-weight:700; letter-spacing:.2px;
+  }
+  .timer{
+    font-variant-numeric:tabular-nums; font-weight:800;
+    padding:6px 12px; border-radius:12px; background:var(--accent-2);
+  }
+  .panel{
+    background:linear-gradient(180deg,#fff, #f8fafc);
+    border:1px solid #e5e7eb; border-radius:20px; padding:18px; margin-top:14px;
+  }
+  .story{
+    font-size:clamp(14px,2.6vw,16px); color:var(--muted); line-height:1.5;
+  }
+  .field{
+    display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;
+  }
+  input[type="text"], input[type="search"]{
+    flex:1; min-width:200px; font-size:clamp(18px,4vw,24px);
+    padding:12px 14px; border-radius:14px; border:2px solid #e5e7eb; outline:none; background:#fff;
+  }
+  input[type="text"]:focus{ border-color:var(--focus); box-shadow:0 0 0 4px rgba(147,197,253,.35) }
+  .btn{
+    font-size:clamp(16px,3.6vw,18px); font-weight:800; padding:12px 18px; border-radius:14px; border:none;
+    background:var(--btn); color:var(--btn-ink); cursor:pointer;
+  }
+  .btn:active{ transform:translateY(1px) }
+  .btn.secondary{ background:#e2e8f0; color:#0f172a }
+  .msg{
+    margin-top:12px; padding:10px 12px; border-radius:12px; font-weight:700;
+  }
+  .msg.ok{ background:var(--ok) }
+  .msg.bad{ background:var(--danger) }
+  .row{ display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+  .small{ font-size:13px; color:var(--muted) }
+  .center{ text-align:center }
+  .hidden{ display:none !important }
+  /* Confetti canvas overlays */
+  #confettiCanvas{
+    position:fixed; inset:0; pointer-events:none; z-index:9999;
+  }
+  /* Lock / Escape full-screen overlays */
+  .fullscreen{
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center; padding:20px;
+    background:linear-gradient(180deg,#fff1f2,#ffe4e6);
+    z-index:9998;
+  }
+  .fullscreen .box{
+    background:#fff; border-radius:24px; padding:28px; width:min(720px,92vw);
+    text-align:center; box-shadow:0 20px 50px rgba(15,23,42,.15);
+  }
+</style>
+</head>
+<body>
+<canvas id="confettiCanvas" class="hidden"></canvas>
+
+<div class="container" id="app">
+  <header>
+    <div class="level-tag" id="levelTag">Level 1</div>
+    <div class="title">Locked in the Ratio Room!</div>
+    <div class="timer" id="timer">45:00</div>
+  </header>
+
+  <!-- Intro Panel -->
+  <section class="panel" id="introPanel">
+    <p class="story">
+      You’re locked in the classroom for the weekend unless you crack <strong>20 ratio locks</strong> in time.
+      Enter your <strong>team name</strong> to begin, then type the exact ratio code for each level
+      (numbers, optional decimals, and colons only). Spaces are fine. Trailing zeros are ignored
+      (e.g., <code>36.40</code> counts as <code>36.4</code>).
+    </p>
+    <div class="field" aria-label="Team name">
+      <input id="teamName" type="text" placeholder="Enter team name…" autocomplete="off" />
+      <button class="btn" id="startBtn" aria-label="Start">Start</button>
+    </div>
+    <p class="small">Theme: “Divide the ratios before the timer runs out, or you’re stuck here all weekend!”</p>
+  </section>
+
+  <!-- Game Panel -->
+  <section class="panel hidden" id="gamePanel" aria-live="polite">
+    <div class="center" style="font-weight:700; font-size:clamp(18px,3.4vw,20px); margin-bottom:8px;">
+      Enter the exact ratio code for this level:
+    </div>
+    <div class="field" aria-label="Ratio input">
+      <input id="codeInput" type="text" inputmode="numeric" placeholder="e.g., 36:48 or 36.4:48.6" autocomplete="off" />
+      <button class="btn" id="enterBtn" aria-label="Enter code">Enter</button>
+      <button class="btn secondary" id="resetBtn" aria-label="Reset game">Reset</button>
+    </div>
+    <div id="feedback" class="msg hidden"></div>
+  </section>
+
+  <!-- Success Panel (final escape) -->
+  <section class="panel hidden" id="successPanel">
+    <h2 class="center" style="font-size:clamp(22px,5vw,28px); margin:6px 0 2px;">Well done, you've escaped the ratio room!</h2>
+    <p class="center small" id="summaryText"></p>
+    <div class="field" style="justify-content:center;">
+      <button class="btn" id="copyLinkBtn">Copy shareable success link</button>
+    </div>
+    <p class="center small" id="copyStatus"></p>
+  </section>
+</div>
+
+<!-- Time-up Overlay -->
+<div id="lockedOverlay" class="fullscreen hidden" role="dialog" aria-modal="true">
+  <div class="box">
+    <h2 style="font-size:clamp(22px,5vw,28px); margin-top:0;">Oh no, you're locked in the ratio room!</h2>
+    <p class="small">Time ran out. Click reset to try again.</p>
+    <button class="btn secondary" id="overlayResetBtn">Reset</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ======= CONFIG =======
+ const RAW_CODES = [
+  "24:60", "36:84", "60:36", "24:48", "42:49",
+  "73:59", "84:24", "88:56", "36:24", "99:11",
+  "24.3:60.7", "30.0:70.0", "48.1:28.9", "14.8:39.2", "43.8:51.2",
+  "57.2:45.8", "66.2:18.8", "59.7:37.3", "66.6:44.4", "73.8:8.2"
+];
+  // Normalize provided codes once so we compare normalized-to-normalized.
+  const CODES = RAW_CODES.map(normalizeRatio);
+
+  const DURATION_SECONDS = 45*60; // 45 minutes
+
+  // ======= STATE =======
+  let level = 1;                  // 1..20, then escape
+  let secondsLeft = DURATION_SECONDS;
+  let tickHandle = null;
+  let team = "";
+
+  // ======= DOM =======
+  const levelTag = document.getElementById('levelTag');
+  const timerEl = document.getElementById('timer');
+  const introPanel = document.getElementById('introPanel');
+  const gamePanel = document.getElementById('gamePanel');
+  const successPanel = document.getElementById('successPanel');
+  const codeInput = document.getElementById('codeInput');
+  const feedback = document.getElementById('feedback');
+  const startBtn = document.getElementById('startBtn');
+  const teamName = document.getElementById('teamName');
+  const enterBtn = document.getElementById('enterBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const overlay = document.getElementById('lockedOverlay');
+  const overlayResetBtn = document.getElementById('overlayResetBtn');
+  const summaryText = document.getElementById('summaryText');
+  const copyLinkBtn = document.getElementById('copyLinkBtn');
+  const copyStatus = document.getElementById('copyStatus');
+  const confettiCanvas = document.getElementById('confettiCanvas');
+
+  // ======= INIT =======
+  updateLevelTag();
+  updateTimerText();
+  // Timer starts as soon as page loads
+  startTimer();
+
+  // If URL has ?escaped=1, show success directly (for share links)
+  const params = new URLSearchParams(location.search);
+  if (params.get('escaped') === '1') {
+    team = params.get('team') || "Team";
+    const time = params.get('time') || "";
+    showEscapeScreen(team, time, true);
+  }
+
+  // ======= EVENTS =======
+  startBtn.addEventListener('click', handleStart);
+  teamName.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') handleStart(); });
+
+  enterBtn.addEventListener('click', submitCode);
+  codeInput.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){ submitCode(); }
+  });
+
+  resetBtn.addEventListener('click', resetAll);
+  overlayResetBtn.addEventListener('click', resetAll);
+  copyLinkBtn.addEventListener('click', copyShareLink);
+
+  // ======= FUNCTIONS =======
+  function handleStart(){
+    const val = (teamName.value || "").trim();
+    if(!val){
+      teamName.focus();
+      pulse(teamName);
+      return;
+    }
+    team = val;
+    introPanel.classList.add('hidden');
+    gamePanel.classList.remove('hidden');
+    codeInput.focus();
+  }
+
+  function submitCode(){
+    const raw = codeInput.value || "";
+    // Always clear input after submission (per requirement)
+    codeInput.value = "";
+    const normalized = normalizeRatio(raw);
+    // input validation: if null, it's invalid format
+    if(normalized === null){
+      showBad("Incorrect code");
+      return;
+    }
+    const expected = CODES[level-1]; // 0-based
+    if(normalized === expected){
+      // advance
+      if(level < CODES.length){
+        level++;
+        updateLevelTag();
+        showOk(`Correct! Moving to Level ${level}…`);
+        // brief delay then clear message
+        setTimeout(()=>{ feedback.classList.add('hidden'); }, 800);
+      } else {
+        // escaped
+        const timeStr = formatMMSS(secondsLeft);
+        showEscapeScreen(team, timeStr);
+      }
+    } else {
+      showBad("Incorrect code");
+    }
+  }
+
+  function updateLevelTag(){
+    levelTag.textContent = `Level ${level}`;
+  }
+
+  function showOk(msg){
+    feedback.textContent = msg;
+    feedback.className = "msg ok";
+    feedback.classList.remove('hidden');
+  }
+  function showBad(msg){
+    feedback.textContent = msg;
+    feedback.className = "msg bad";
+    feedback.classList.remove('hidden');
+  }
+
+  function resetAll(){
+    // Stop timer and restart fresh
+    clearInterval(tickHandle);
+    secondsLeft = DURATION_SECONDS;
+    startTimer();
+    // Reset level and UI
+    level = 1; updateLevelTag();
+    team = "";
+    teamName.value = "";
+    feedback.classList.add('hidden');
+    codeInput.value = "";
+    overlay.classList.add('hidden');
+    successPanel.classList.add('hidden');
+    // Go back to intro
+    gamePanel.classList.add('hidden');
+    introPanel.classList.remove('hidden');
+    teamName.focus();
+    stopConfetti();
+  }
+
+  function startTimer(){
+    updateTimerText();
+    tickHandle = setInterval(()=>{
+      secondsLeft--;
+      if(secondsLeft <= 0){
+        clearInterval(tickHandle);
+        secondsLeft = 0;
+        updateTimerText();
+        // Time up → lock screen (replace the game)
+        overlay.classList.remove('hidden');
+      } else {
+        updateTimerText();
+      }
+    }, 1000);
+  }
+
+  function updateTimerText(){
+    timerEl.textContent = formatMMSS(secondsLeft);
+    // gentle color cue
+    if(secondsLeft <= 60){ timerEl.style.background = '#fecaca'; }
+    else if(secondsLeft <= 5*60){ timerEl.style.background = '#fde68a'; }
+    else { timerEl.style.background = 'var(--accent-2)'; }
+  }
+
+  function formatMMSS(s){
+    const m = Math.floor(s/60);
+    const ss = s % 60;
+    return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+  }
+
+  // Normalization per requirements:
+  // - ignore surrounding spaces and spaces around colons
+  // - treat trailing zeros as insignificant (36.40 == 36.4)
+  // - only allow digits and optional single decimal point per segment
+  // - remove leading zeros on integer part (08.3 -> 8.3; 000 -> 0)
+  function normalizeRatio(input){
+    // collapse multiple spaces, allow spaces around colon
+    const cleaned = String(input).trim().replace(/\s+/g,' ');
+    if(cleaned.length === 0) return null;
+
+    // split on colon, ignoring spaces around it
+    const parts = cleaned.split(':').map(p => p.trim());
+    if(parts.length < 2) return null;
+
+    const out = [];
+    for(const p of parts){
+      // Only digits and optional single dot
+      if(!/^\d+(\.\d+)?$/.test(p)) return null;
+      let [ints, decs=""] = p.split('.');
+      // strip leading zeros from integer part
+      ints = ints.replace(/^0+(?=\d)/,'');
+      if(ints === "") ints = "0";
+      // strip trailing zeros from decimal part
+      decs = (decs || "").replace(/0+$/,'');
+      if(decs.length === 0){
+        out.push(ints);
+      } else {
+        out.push(ints + "." + decs);
+      }
+    }
+    return out.join(':');
+  }
+
+  function showEscapeScreen(teamName, timeStr, fromShare=false){
+    // Hide game and intro
+    introPanel.classList.add('hidden');
+    gamePanel.classList.add('hidden');
+    successPanel.classList.remove('hidden');
+    // Confetti!
+    startConfetti();
+    // Summary text
+    const headline = fromShare
+      ? `Team ${sanitize(teamName)} escaped the Ratio Room!`
+      : `Congratulations, ${sanitize(teamName)}! You cracked all 20 locks with ${timeStr} left.`;
+    summaryText.textContent = headline;
+  }
+
+  function sanitize(str){
+    return String(str || "").replace(/[<>]/g,'');
+  }
+
+  async function copyShareLink(){
+    const timeStr = formatMMSS(secondsLeft);
+    const url = new URL(location.href);
+    url.searchParams.set('escaped','1');
+    url.searchParams.set('team', team || 'Team');
+    url.searchParams.set('time', timeStr);
+    url.searchParams.set('levels', CODES.length.toString());
+    try{
+      await navigator.clipboard.writeText(url.toString());
+      copyStatus.textContent = "Link copied!";
+    }catch(e){
+      copyStatus.textContent = "Unable to copy. You can copy from the address bar.";
+    }
+  }
+
+  function pulse(el){
+    el.animate([{transform:'scale(1)'},{transform:'scale(1.03)'},{transform:'scale(1)'}],
+               {duration:280, easing:'ease-out'});
+  }
+
+  // ======= Lightweight Confetti =======
+  let confettiCtx, confettiReq, confettiPieces = [];
+  function startConfetti(){
+    confettiCanvas.classList.remove('hidden');
+    confettiCanvas.width = window.innerWidth;
+    confettiCanvas.height = window.innerHeight;
+    confettiCtx = confettiCanvas.getContext('2d');
+    confettiPieces = makeConfetti(180);
+    let last = performance.now();
+    const step = (t)=>{
+      const dt = Math.min(32, t - last); last = t;
+      drawConfetti(dt);
+      confettiReq = requestAnimationFrame(step);
+    };
+    confettiReq = requestAnimationFrame(step);
+    // auto stop after 6s
+    setTimeout(stopConfetti, 6000);
+  }
+  function stopConfetti(){
+    if(confettiReq) cancelAnimationFrame(confettiReq);
+    confettiReq = null;
+    confettiPieces = [];
+    confettiCanvas.classList.add('hidden');
+    const ctx = confettiCanvas.getContext('2d');
+    ctx && ctx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
+  }
+  function makeConfetti(n){
+    const arr = [];
+    for(let i=0;i<n;i++){
+      arr.push({
+        x: Math.random()*window.innerWidth,
+        y: -20 - Math.random()*window.innerHeight*0.3,
+        s: 4 + Math.random()*6,
+        vx: -1 + Math.random()*2,
+        vy: 1 + Math.random()*2,
+        rot: Math.random()*Math.PI*2,
+        vr: (-0.1 + Math.random()*0.2),
+        // pastel-ish colors
+        c: ['#a5b4fc','#86efac','#fde68a','#fca5a5','#93c5fd','#e9d5ff'][Math.floor(Math.random()*6)]
+      });
+    }
+    return arr;
+  }
+  function drawConfetti(dt){
+    const ctx = confettiCtx; if(!ctx) return;
+    const w = confettiCanvas.width, h = confettiCanvas.height;
+    ctx.clearRect(0,0,w,h);
+    for(const p of confettiPieces){
+      p.x += p.vx * (dt/16);
+      p.y += p.vy * (dt/16) + 0.15;
+      p.rot += p.vr * (dt/16);
+      if(p.y > h + 20) { p.y = -20; p.x = Math.random()*w; }
+      ctx.save();
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.c;
+      ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s);
+      ctx.restore();
+    }
+  }
+
+  // Resize canvas on viewport change
+  window.addEventListener('resize', ()=>{
+    if(!confettiCanvas.classList.contains('hidden')){
+      confettiCanvas.width = window.innerWidth;
+      confettiCanvas.height = window.innerHeight;
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
