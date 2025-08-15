@@ -107,10 +107,10 @@
   <!-- Intro Panel -->
   <section class="panel" id="introPanel">
     <p class="story">
-      You’re locked in the classroom for the weekend unless you crack <strong>20 ratio locks</strong> in time.
-      Enter your <strong>team name</strong> to begin, then type the exact ratio code for each level
-      (numbers, optional decimals, and colons only). Spaces are fine. Trailing zeros are ignored
-      (e.g., <code>36.40</code> counts as <code>36.4</code>).
+      Oh no – Mr. Mills has locked 8 Maths 5 in the Ratio Room! Divide your way through the problems to escape!
+  Enter your <strong>team name</strong> to begin, then type the exact ratio code for each level
+  (numbers, optional decimals, and colons only). Spaces are fine. Trailing zeros are ignored
+  (e.g., <code>36.40</code> counts as <code>36.4</code>)
     </p>
     <div class="field" aria-label="Team name">
       <input id="teamName" type="text" placeholder="Enter team name…" autocomplete="off" />
@@ -156,7 +156,7 @@
 (function(){
   // ======= CONFIG =======
  const RAW_CODES = [
-  "24:60", "36:84", "60:36", "24:48", "42:49",
+ "24:60", "36:84", "60:36", "24:48", "42:49",
   "73:59", "84:24", "88:56", "36:24", "99:11",
   "24.3:60.7", "30.0:70.0", "48.1:28.9", "14.8:39.2", "43.8:51.2",
   "57.2:45.8", "66.2:18.8", "59.7:37.3", "66.6:44.4", "73.8:8.2"
@@ -164,7 +164,7 @@
   // Normalize provided codes once so we compare normalized-to-normalized.
   const CODES = RAW_CODES.map(normalizeRatio);
 
-  const DURATION_SECONDS = 45*60; // 45 minutes
+const DURATION_SECONDS = 30*60; // 30 minutes
 
   // ======= STATE =======
   let level = 1;                  // 1..20, then escape
